@@ -1,0 +1,163 @@
+/* =========================================
+   1. IMPOSTAZIONI RESPONSIVE (FLUID TYPOGRAPHY)
+   ========================================= */
+   :root {
+    font-family: 'Varela Round', sans-serif, system-ui;
+    line-height: 1.5;
+    font-weight: 400;
+    
+    /* Dimensione base che scala con lo schermo */
+    font-size: 16px; 
+    
+    /* Colori Base */
+    --bg-color: #f0f4f8;
+    --text-color: #2d3436;
+  }
+  
+  /* Tablet */
+  @media (max-width: 768px) {
+    :root {
+      font-size: 14px; 
+    }
+  }
+  
+  /* Mobile */
+  @media (max-width: 480px) {
+    :root {
+      font-size: 12px; 
+    }
+  }
+  
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  img, svg {
+    max-width: 100%;
+    height: auto;
+    display: block; /* Evita spazi bianchi strani sotto le icone */
+  }
+  
+  /* =========================================
+     2. STILI "CLAY" (CARD E BOTTONI)
+     ========================================= */
+  
+  /* Stile Base Card - FONDAMENTALE: display flex */
+  .clay-card {
+    background: #ffffff;
+    border-radius: 30px; /* Arrotondamento morbido */
+    padding: 20px;
+    
+    /* Effetto 3D Soffice */
+    box-shadow: 
+      10px 10px 20px rgba(166, 171, 189, 0.5), 
+      -10px -10px 20px rgba(255, 255, 255, 0.8);
+      
+    /* Layout Interno: Centra tutto di default */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box; /* Include padding nelle dimensioni */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  /* Effetto Hover sulle card (opzionale) */
+  .clay-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  /* Stile Foglio (Per contenuti lunghi come Ebook) */
+  .clay-sheet {
+    background: #ffffff;
+    border-radius: 25px;
+    padding: 30px;
+    box-shadow: 
+      inset 5px 5px 10px rgba(166, 171, 189, 0.2), 
+      inset -5px -5px 10px rgba(255, 255, 255, 0.8);
+    box-sizing: border-box;
+  }
+  
+  /* Bottone Clay */
+  .clay-btn {
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 12px 24px;
+    border-radius: 15px;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 1rem;
+    background: #f0f4f8;
+    color: #555;
+    
+    /* Ombra esterna (Bottone in rilievo) */
+    box-shadow: 
+      6px 6px 12px rgba(166, 171, 189, 0.4), 
+      -6px -6px 12px rgba(255, 255, 255, 0.8);
+      
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.1s ease;
+  }
+  
+  /* Effetto Click Bottone */
+  .clay-btn:active {
+    transform: scale(0.96);
+    box-shadow: 
+      inset 4px 4px 8px rgba(166, 171, 189, 0.4), 
+      inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+  }
+  
+  /* Bottone Primario (Colorato) */
+  .clay-btn-primary {
+    background: #2196F3;
+    color: white;
+    box-shadow: 
+      6px 6px 12px rgba(33, 150, 243, 0.3), 
+      -6px -6px 12px rgba(255, 255, 255, 0.8);
+  }
+  
+  .clay-btn-primary:active {
+    background: #1976D2;
+    box-shadow: 
+      inset 4px 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Icon Container (Cerchi dietro le icone) */
+  .icon-container {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: inset 3px 3px 6px rgba(0,0,0,0.1);
+  }
+  
+  /* =========================================
+     3. ANIMAZIONI UTILITY
+     ========================================= */
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  /* Utility per centrare se serve */
+  .center-all {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
