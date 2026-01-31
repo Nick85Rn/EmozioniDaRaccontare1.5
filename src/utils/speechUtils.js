@@ -1,37 +1,34 @@
 // src/utils/speechUtils.js
 
-// 👇 LA TUA VOCE SCELTA
 const VOICE_ID = "13Cuh3NuYvWOVQtLbRN8"; 
 const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
 
-// Cache per non scaricare due volte la stessa frase (RISPARMIA CREDITI!)
 const audioCache = {}; 
-let currentAudio = null; // Per poter stoppare l'audio in corso
+let currentAudio = null;
 
 export const speakText = async (text, onEndCallback) => {
-  // 1. Ferma audio precedente se c'è
   stopSpeech();
 
+  // 1. CONTROLLO CHIAVE
+  console.log("🔍 DEBUG AUDIO - Controllo Configurazione:");
+  console.log("   - Testo da leggere:", text);
+  console.log("   - API Key presente?", API_KEY ? "SÌ ✅" : "NO ❌ (Controlla il file .env)");
+
   if (!text) return;
-  
-  // Controllo di sicurezza
   if (!API_KEY) {
-    console.error("Manca la API Key di ElevenLabs nel file .env!");
-    // Non blocchiamo tutto con un alert, ma logghiamo l'errore
+    alert("⚠️ Manca la API Key! Controlla la console (F12).");
     return;
   }
 
   try {
     let audioUrl;
 
-    // 2. CONTROLLA LA CACHE (Hai già scaricato questa frase?)
     if (audioCache[text]) {
-      // console.log("♻️ Uso audio dalla cache"); // Debug opzionale
+      console.log("♻️ Uso audio dalla cache.");
       audioUrl = audioCache[text];
     } else {
-      // console.log("🌍 Scarico audio da ElevenLabs..."); // Debug opzionale
+      console.log("🌍 Contatto ElevenLabs...");
       
-      // 3. CHIAMATA API ELEVENLABS
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
         method: 'POST',
         headers: {
@@ -40,47 +37,45 @@ export const speakText = async (text, onEndCallback) => {
         },
         body: JSON.stringify({
           text: text,
-          model_id: "eleven_multilingual_v2", // Modello migliore per l'Italiano
-          voice_settings: {
-            stability: 0.5,       // Più basso = più espressivo
-            similarity_boost: 0.75 // Più alto = più fedele
-          }
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
         })
       });
 
+      console.log("📡 Risposta Server:", response.status); // 200 è OK, 401 è Errore Chiave
+
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.detail?.message || "Errore ElevenLabs");
+        console.error("🔥 ERRORE ELEVENLABS:", err);
+        throw new Error(err.detail?.message || "Errore sconosciuto");
       }
 
-      // 4. Converti il risultato in un URL suonabile
       const blob = await response.blob();
       audioUrl = URL.createObjectURL(blob);
-      
-      // Salva in cache
       audioCache[text] = audioUrl;
     }
 
-    // 5. RIPRODUCI
     currentAudio = new Audio(audioUrl);
+    currentAudio.onended = () => { if (onEndCallback) onEndCallback(); };
     
-    // Gestione fine audio
-    currentAudio.onended = () => {
-      if (onEndCallback) onEndCallback();
-    };
-
-    currentAudio.play();
+    // Tenta di riprodurre e cattura errori del browser
+    const playPromise = currentAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error("🔇 Il browser ha bloccato l'audio:", error);
+      });
+    }
 
   } catch (error) {
-    console.error("Errore Audio:", error);
-    // Fallback silenzioso o alert se preferisci
+    console.error("❌ ERRORE TOTALE:", error);
+    alert(`Errore Audio: ${error.message}`);
   }
 };
 
 export const stopSpeech = () => {
   if (currentAudio) {
     currentAudio.pause();
-    currentAudio.currentTime = 0; // Riavvolgi
+    currentAudio.currentTime = 0;
     currentAudio = null;
   }
 };
