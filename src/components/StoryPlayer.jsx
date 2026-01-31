@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { speakText, stopSpeech } from '../utils/speechUtils'; // Importa ElevenLabs
+import { speakText, stopSpeech } from '../utils/speechUtils'; // LA VOCE
 import { Play, Pause, ArrowLeft, ArrowRight, Home } from 'lucide-react';
 
 const StoryPlayer = () => {
@@ -67,7 +67,7 @@ const StoryPlayer = () => {
 
       <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', width: '100%', textAlign: 'center' }}>
         
-        {/* Immagine Scena */}
+        {/* IMMAGINE RIPRISTINATA */}
         {pageImage && (
           <div className="clay-card" style={{ padding: 10, background: '#fff', borderRadius: 20, marginBottom: 20 }}>
             <img src={pageImage} alt="Scena" style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 15 }} />

@@ -14,7 +14,7 @@ const BookReader = () => {
     const fetchBook = async () => {
       const { data } = await supabase.from('books').select('*').eq('id', id).single();
       if (data) {
-        // Normalizza il contenuto (gestisce array o stringa singola)
+        // Normalizza il contenuto (array o stringa)
         let content = [];
         if (data.content && Array.isArray(data.content)) content = data.content;
         else if (data.text) content = data.text.split('\n\n');
