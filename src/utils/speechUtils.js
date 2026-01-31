@@ -1,6 +1,6 @@
 // src/utils/speechUtils.js
 
-// 👇 LA TUA VOCE SCELTA (ID che avevi salvato)
+// 👇 LA TUA VOCE SCELTA
 const VOICE_ID = "13Cuh3NuYvWOVQtLbRN8"; 
 const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
 
@@ -13,9 +13,11 @@ export const speakText = async (text, onEndCallback) => {
   stopSpeech();
 
   if (!text) return;
+  
+  // Controllo di sicurezza
   if (!API_KEY) {
     console.error("Manca la API Key di ElevenLabs nel file .env!");
-    alert("Errore configurazione voce.");
+    // Non blocchiamo tutto con un alert, ma logghiamo l'errore
     return;
   }
 
@@ -24,10 +26,10 @@ export const speakText = async (text, onEndCallback) => {
 
     // 2. CONTROLLA LA CACHE (Hai già scaricato questa frase?)
     if (audioCache[text]) {
-      console.log("♻️ Uso audio dalla cache (Crediti risparmiati!)");
+      // console.log("♻️ Uso audio dalla cache"); // Debug opzionale
       audioUrl = audioCache[text];
     } else {
-      console.log("🌍 Scarico audio da ElevenLabs...");
+      // console.log("🌍 Scarico audio da ElevenLabs..."); // Debug opzionale
       
       // 3. CHIAMATA API ELEVENLABS
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
@@ -41,7 +43,7 @@ export const speakText = async (text, onEndCallback) => {
           model_id: "eleven_multilingual_v2", // Modello migliore per l'Italiano
           voice_settings: {
             stability: 0.5,       // Più basso = più espressivo
-            similarity_boost: 0.75 // Più alto = più fedele alla voce originale
+            similarity_boost: 0.75 // Più alto = più fedele
           }
         })
       });
@@ -71,7 +73,7 @@ export const speakText = async (text, onEndCallback) => {
 
   } catch (error) {
     console.error("Errore Audio:", error);
-    alert("Impossibile generare la voce. Controlla la quota ElevenLabs.");
+    // Fallback silenzioso o alert se preferisci
   }
 };
 
