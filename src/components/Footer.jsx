@@ -1,23 +1,39 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 
 const Footer = () => {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer style={{ 
-      textAlign: 'center', 
+      background: '#fff', 
+      borderTop: '1px solid #eee', 
       padding: '20px', 
-      marginTop: 'auto', 
-      width: '100%',
-      color: '#B0BEC5', 
+      textAlign: 'center',
       fontSize: '0.85rem',
-      fontFamily: 'sans-serif',
-      borderTop: '1px solid #f0f0f0',
-      background: '#fafafa'
+      color: '#666',
+      marginTop: 'auto' // Spinge il footer in fondo
     }}>
-      <p style={{ margin: 0 }}>
-        Powered by <strong style={{ color: '#78909C' }}>Nicola Pellicioni</strong>
-        <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> 
-        <span style={{ background: '#ECEFF1', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', color: '#546E7A' }}>v1.5</span>
-      </p>
+      <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        
+        <div>
+          © {currentYear} <strong>Emozioni da Raccontare</strong>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+          <Link to="/parents" style={{ color: '#888', textDecoration: 'none' }}>Area Genitori</Link>
+          <span>•</span>
+          <Link to="/privacy" style={{ color: '#888', textDecoration: 'none' }}>Privacy</Link>
+        </div>
+
+        <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+          <span>Versione 1.5</span>
+          <span>|</span>
+          <span>Fatto con <Heart size={10} color="red" fill="red" /> da Nicola</span>
+        </div>
+
+      </div>
     </footer>
   );
 };
