@@ -1,96 +1,184 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Volume2, VolumeX, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { speakText, stopSpeech } from '../utils/speechUtils'; // LA VOCE
-import { Play, Pause, ArrowLeft, ArrowRight, Home } from 'lucide-react';
+import StickerAward from './StickerAward'; 
+// 👇 ECCO IL CAMBIO: Usiamo il nuovo utils
+import { speakText, stopSpeech } from '../utils/speechUtils';
 
 const StoryPlayer = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  
   const [story, setStory] = useState(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentNodeId, setCurrentNodeId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // Audio
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+
+  // Premio
+  const [showAward, setShowAward] = useState(false);
+  const [hasAwarded, setHasAwarded] = useState(false); 
+
+  // Fetch Storia
   useEffect(() => {
     const fetchStory = async () => {
       const { data } = await supabase.from('stories').select('*').eq('id', id).single();
-      setStory(data);
+      if (data) {
+        setStory(data);
+        setCurrentNodeId(data.start_node || 'start');
+      }
+      setLoading(false);
     };
     fetchStory();
-    return () => stopSpeech(); // Ferma audio se esci
+    return () => stopSpeech(); // Pulisce audio quando esci
   }, [id]);
 
-  const handlePlay = () => {
-    if (!story) return;
-    const text = story.pages?.[currentPage]?.text || "";
-    setIsPlaying(true);
-    speakText(text, () => setIsPlaying(false)); // PARLA!
-  };
+  // Gestione Audio NUOVA
+  const handleSpeak = async () => {
+    if(!story || !currentNodeId) return;
+    const currentNode = story.nodes[currentNodeId];
 
-  const handleStop = () => {
-    stopSpeech();
-    setIsPlaying(false);
-  };
-
-  const changePage = (dir) => {
-    handleStop();
-    let newPage = currentPage + dir;
-    if (story && story.pages) {
-      if (newPage < 0) newPage = 0;
-      if (newPage >= story.pages.length) newPage = story.pages.length - 1;
-      setCurrentPage(newPage);
+    if (isSpeaking) {
+      stopSpeech();
+      setIsSpeaking(false);
+      return;
     }
+    
+    setIsLoadingAudio(true);
+    
+    // Chiama ElevenLabs
+    await speakText(currentNode.text, story.language || 'it', () => {
+      setIsSpeaking(false);
+      setIsLoadingAudio(false);
+    });
+    
+    setIsSpeaking(true);
+    setIsLoadingAudio(false);
   };
 
-  if (!story) return <div style={{padding:50, textAlign:'center'}}>Caricamento...</div>;
+  // Ferma audio se cambi pagina/nodo
+  useEffect(() => {
+    stopSpeech();
+    setIsSpeaking(false);
+  }, [currentNodeId]);
 
-  const page = story.pages ? story.pages[currentPage] : null;
-  // Recupera l'immagine della pagina
-  const pageImage = page?.image_url || page?.image;
+  const handleChoice = (choice) => {
+    stopSpeech();
+    setIsSpeaking(false);
+    setCurrentNodeId(choice.nextId);
+  };
+
+  // Controllo Fine Storia e Premio (INVARIATO)
+  useEffect(() => {
+    if (!story || !currentNodeId) return;
+    const currentNode = story.nodes[currentNodeId];
+    const isEnding = !currentNode.choices || currentNode.choices.length === 0;
+
+    if (isEnding && !hasAwarded) {
+       const unlockSticker = async () => {
+         const { data: { session } } = await supabase.auth.getSession();
+         if(session) {
+            const { error } = await supabase
+               .from('user_stickers')
+               .insert([{ user_id: session.user.id, sticker_id: 1 }]);
+            if (!error) setTimeout(() => setShowAward(true), 1000); 
+         }
+       };
+       unlockSticker();
+       setHasAwarded(true);
+    }
+  }, [currentNodeId, story, hasAwarded]);
+
+  if (loading) return <div style={{height:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}><Loader2 className="animate-spin" size={50}/></div>;
+  if (!story) return <div style={{textAlign:'center', marginTop:'50px'}}>Storia non trovata!</div>;
+
+  const currentNode = story.nodes[currentNodeId];
+  const choices = currentNode.choices || [];
+  const isEnding = choices.length === 0;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FFF3E0', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif' }}>
-      
-      {/* Header Navigazione */}
-      <div style={{ padding: '15px', background: '#FFCC80', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link to="/" onClick={handleStop} style={{ color: '#5D4037' }}>
-           <div className="clay-btn" style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Home size={22} />
-           </div>
-        </Link>
-        <span style={{ color: '#5D4037', fontWeight: 'bold' }}>{story.title}</span>
-        <Link to="/stories" onClick={handleStop} style={{ color: '#5D4037' }}>
-           <div className="clay-btn" style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ArrowLeft size={24} />
-           </div>
-        </Link>
-      </div>
+    <motion.div 
+      animate={{ backgroundColor: currentNode.bgColor || '#f0f4f8' }}
+      transition={{ duration: 0.8 }}
+      style={{ minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Link to="/stories" onClick={stopSpeech} style={{ position: 'absolute', top: 20, left: 20 }}>
+        <button className="clay-btn" style={{ padding: '10px', borderRadius: '50%', width: '50px', height: '50px', display:'flex', alignItems:'center', justifyContent:'center' }}><ArrowLeft /></button>
+      </Link>
 
-      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', width: '100%', textAlign: 'center' }}>
+      {showAward && (
+         <StickerAward stickerName="Il Lettore Coraggioso" onClose={() => navigate('/album')} />
+      )}
+
+      <div style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
         
-        {/* IMMAGINE RIPRISTINATA */}
-        {pageImage && (
-          <div className="clay-card" style={{ padding: 10, background: '#fff', borderRadius: 20, marginBottom: 20 }}>
-            <img src={pageImage} alt="Scena" style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: 15 }} />
-          </div>
-        )}
+        {/* EMOJI GIGANTE (Questo è quello che mancava!) */}
+        <motion.div 
+          key={currentNodeId} 
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          style={{ fontSize: '100px', marginBottom: '30px', filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.1))' }}
+        >
+          {currentNode.image}
+        </motion.div>
 
-        {/* Testo */}
-        <div className="clay-card" style={{ background: '#fff', padding: '20px', borderRadius: '20px', marginBottom: 20, fontSize: '1.3rem', color: '#4E342E', lineHeight: '1.6' }}>
-          {page?.text}
-        </div>
+        <motion.div
+          key={currentNodeId + '-text'}
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="clay-sheet"
+          style={{ position: 'relative', marginBottom: '40px', padding: '30px' }}
+        >
+          <button 
+            onClick={handleSpeak}
+            disabled={isLoadingAudio}
+            className="clay-btn"
+            style={{
+              position: 'absolute', top: '-30px', right: '20px',
+              borderRadius: '50%', width: '60px', height: '60px', padding: 0,
+              background: isSpeaking ? '#FF7675' : '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            {isLoadingAudio ? <Loader2 className="animate-spin" /> : isSpeaking ? <VolumeX /> : <Volume2 />}
+          </button>
 
-        {/* Controlli Audio */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, alignItems: 'center' }}>
-          <button onClick={() => changePage(-1)} disabled={currentPage===0} className="clay-btn"><ArrowLeft /></button>
-          {!isPlaying ? (
-            <button onClick={handlePlay} className="clay-btn" style={{ background: '#4CAF50', color: '#fff', borderRadius: '50%', width: 65, height: 65 }}><Play size={30} fill="white" style={{marginLeft:4}}/></button>
-          ) : (
-            <button onClick={handleStop} className="clay-btn" style={{ background: '#F44336', color: '#fff', borderRadius: '50%', width: 65, height: 65 }}><Pause size={30} fill="white" /></button>
+          <p style={{ fontSize: '1.5rem', lineHeight: '1.6', color: '#2d3436', margin: 0 }}>
+            {currentNode.text}
+          </p>
+        </motion.div>
+
+        <div style={{ display: 'grid', gap: '20px' }}>
+          {choices.map((choice, index) => (
+            <motion.button
+              key={index}
+              className="clay-btn"
+              onClick={() => handleChoice(choice)}
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              {choice.text}
+            </motion.button>
+          ))}
+
+          {isEnding && !showAward && (
+            <Link to="/stories" style={{ textDecoration: 'none' }}>
+              <button className="clay-btn clay-btn-primary" style={{ width: '100%' }}>
+                 {story.language === 'en' ? 'Back to Library 🏁' : 'Torna alla Libreria 🏁'}
+              </button>
+            </Link>
           )}
-          <button onClick={() => changePage(1)} disabled={currentPage===story.pages.length-1} className="clay-btn"><ArrowRight /></button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
