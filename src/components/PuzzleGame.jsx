@@ -1,129 +1,226 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RefreshCw, Trophy, Grid3X3, Grid2X2, Grid } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, RefreshCw, Trophy, Play } from 'lucide-react';
+import { speakText } from '../utils/speechUtils'; // 🔊 Integra la voce ElevenLabs
 
-const PUZZLE_IMAGES = [
-  { id: 1, src: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?auto=format&fit=crop&w=600&q=80", title: "Leone" },
-  { id: 2, src: "https://images.unsplash.com/photo-1456926631375-92c8ce872def?auto=format&fit=crop&w=600&q=80", title: "Ghepardo" },
-  { id: 3, src: "https://images.unsplash.com/photo-1474511320723-9a56873867b5?auto=format&fit=crop&w=600&q=80", title: "Volpe" },
-  { id: 4, src: "https://images.unsplash.com/photo-1535591273668-578e31182c4f?auto=format&fit=crop&w=600&q=80", title: "Pesce Pagliaccio" }
+// Immagini di esempio (puoi sostituirle con le tue URL reali se diverse)
+const IMAGES = [
+  { id: 1, src: 'https://images.unsplash.com/photo-1546182990-dffeafbe841d?auto=format&fit=crop&w=500&q=80', name: 'Leone' },
+  { id: 2, src: 'https://images.unsplash.com/photo-1519066629447-267fffa62d4b?auto=format&fit=crop&w=500&q=80', name: 'Ghepardo' },
+  { id: 3, src: 'https://images.unsplash.com/photo-1474511320723-9a56873867b5?auto=format&fit=crop&w=500&q=80', name: 'Volpe' },
+  { id: 4, src: 'https://images.unsplash.com/photo-1522069169874-c58ec4b76be5?auto=format&fit=crop&w=500&q=80', name: 'Pesce Pagliaccio' },
 ];
 
-// DIMENSIONE FISSA DEL PUZZLE (Pixel) - Previene errori di calcolo e duplicati
-const BOARD_SIZE = 320; 
-
 const PuzzleGame = () => {
-  const [level, setLevel] = useState(3);
-  const [selectedImage, setSelectedImage] = useState(PUZZLE_IMAGES[0]);
-  const [pieces, setPieces] = useState([]);
-  const [firstSelected, setFirstSelected] = useState(null);
+  const [level, setLevel] = useState(2); // 2 = Facile (2x2), 3 = Medio, 4 = Difficile
+  const [selectedImage, setSelectedImage] = useState(IMAGES[0]);
+  const [tiles, setTiles] = useState([]);
   const [isSolved, setIsSolved] = useState(false);
-  const [gameKey, setGameKey] = useState(0); // Chiave per resettare la griglia
+  const [firstTileIndex, setFirstTileIndex] = useState(null); // Per lo swap
 
-  useEffect(() => { startNewGame(); }, [level, selectedImage]);
-
-  // Algoritmo Shuffle Classico (Fisher-Yates)
-  const shuffleArray = (array) => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const temp = newArray[i];
-      newArray[i] = newArray[j];
-      newArray[j] = temp;
-    }
-    return newArray;
-  };
+  // Inizia una nuova partita
+  useEffect(() => {
+    startNewGame();
+  }, [level, selectedImage]);
 
   const startNewGame = () => {
-    const totalPieces = level * level;
-    const initialPieces = Array.from({ length: totalPieces }, (_, i) => i);
-    let shuffled = shuffleArray(initialPieces);
-    
-    // Evitiamo che esca già risolto
-    if (shuffled.every((val, index) => val === index)) {
-      shuffled = shuffleArray(initialPieces);
-    }
-
-    setPieces(shuffled);
     setIsSolved(false);
-    setFirstSelected(null);
-    setGameKey(prev => prev + 1);
+    setFirstTileIndex(null);
+    
+    // 1. Crea i pezzi
+    const totalTiles = level * level;
+    const newTiles = Array.from({ length: totalTiles }, (_, index) => ({
+      id: index,
+      currentPos: index, // Posizione attuale
+      correctPos: index, // Posizione corretta
+    }));
+
+    // 2. Mescola (Shuffle)
+    const shuffled = [...newTiles].sort(() => Math.random() - 0.5);
+    setTiles(shuffled);
   };
 
-  const handlePieceClick = (index) => {
+  // Gestione Click per scambiare due pezzi
+  const handleTileClick = (index) => {
     if (isSolved) return;
-    if (firstSelected === null) {
-      setFirstSelected(index);
+
+    if (firstTileIndex === null) {
+      // Primo click
+      setFirstTileIndex(index);
     } else {
-      if (firstSelected === index) { setFirstSelected(null); return; }
-      const newPieces = [...pieces];
-      const temp = newPieces[firstSelected];
-      newPieces[firstSelected] = newPieces[index];
-      newPieces[index] = temp;
-      setPieces(newPieces);
-      setFirstSelected(null);
-      checkWin(newPieces);
+      // Secondo click: Scambia
+      const newTiles = [...tiles];
+      const temp = newTiles[firstTileIndex];
+      newTiles[firstTileIndex] = newTiles[index];
+      newTiles[index] = temp;
+      
+      setTiles(newTiles);
+      setFirstTileIndex(null);
+      checkWin(newTiles);
     }
   };
 
-  const checkWin = (currentPieces) => {
-    if (currentPieces.every((p, i) => p === i)) setTimeout(() => setIsSolved(true), 300);
+  const checkWin = (currentTiles) => {
+    const isWin = currentTiles.every((tile, index) => tile.correctPos === index);
+    if (isWin) {
+      setIsSolved(true);
+      // 🔊 VOCE ELEVENLABS ALLA VITTORIA
+      speakText(`Bravissimo! Hai completato il puzzle del ${selectedImage.name}!`);
+    }
   };
 
-  const pieceSize = BOARD_SIZE / level;
+  // Calcolo per ritagliare l'immagine (background-position)
+  const getBackgroundStyle = (correctPos) => {
+    const row = Math.floor(correctPos / level);
+    const col = correctPos % level;
+    const percentage = 100 / (level - 1);
+    
+    return {
+      backgroundImage: `url(${selectedImage.src})`,
+      backgroundSize: `${level * 100}%`,
+      backgroundPosition: `${col * percentage}% ${row * percentage}%`
+    };
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#E3F2FD', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ width: '100%', maxWidth: '600px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Link to="/games"><button className="clay-btn" style={{ borderRadius: '50%', width: '50px', height: '50px', padding: 0, justifyContent: 'center' }}><ArrowLeft /></button></Link>
-            <div style={{ marginLeft: '15px' }}><h1 style={{ color: '#1565C0', margin: 0, fontSize: '1.5rem' }}>Puzzle 🧩</h1></div>
-        </div>
-        <button onClick={startNewGame} className="clay-btn" style={{ borderRadius: '50%', width: '50px', height: '50px', padding: 0, justifyContent: 'center' }}><RefreshCw /></button>
+    <div style={{ minHeight: '100vh', background: '#E3F2FD', padding: '20px', fontFamily: 'sans-serif' }}>
+      
+      {/* HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <Link to="/games" style={{ textDecoration: 'none', color: '#1565C0' }}>
+          <div className="clay-btn" style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ArrowLeft />
+          </div>
+        </Link>
+        <h2 style={{ color: '#1565C0', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          Puzzle <span style={{fontSize: '1.5rem'}}>🧩</span>
+        </h2>
+        <button onClick={startNewGame} className="clay-btn" style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <RefreshCw size={20} />
+        </button>
       </div>
 
-      <div className="clay-card" style={{ marginBottom: '20px', flexDirection: 'row', gap: '10px', padding: '10px', borderRadius: '40px', background: '#BBDEFB' }}>
-        <button onClick={() => setLevel(2)} style={{ opacity: level === 2 ? 1 : 0.6, background: level === 2 ? '#fff' : 'transparent' }} className="clay-btn"><Grid2X2 size={18}/> Facile</button>
-        <button onClick={() => setLevel(3)} style={{ opacity: level === 3 ? 1 : 0.6, background: level === 3 ? '#fff' : 'transparent' }} className="clay-btn"><Grid3X3 size={18}/> Medio</button>
-        <button onClick={() => setLevel(4)} style={{ opacity: level === 4 ? 1 : 0.6, background: level === 4 ? '#fff' : 'transparent' }} className="clay-btn"><Grid size={18}/> Difficile</button>
+      {/* LIVELLI */}
+      <div className="clay-card" style={{ padding: '10px', marginBottom: '20px', display: 'flex', justifyContent: 'center', gap: '10px', borderRadius: '30px' }}>
+        {[2, 3, 4].map((lvl) => (
+          <button
+            key={lvl}
+            onClick={() => setLevel(lvl)}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '20px',
+              border: 'none',
+              background: level === lvl ? '#fff' : 'transparent',
+              color: level === lvl ? '#1565C0' : '#90CAF9',
+              fontWeight: 'bold',
+              boxShadow: level === lvl ? '0 2px 10px rgba(0,0,0,0.1)' : 'none',
+              cursor: 'pointer',
+              transition: '0.3s'
+            }}
+          >
+            {lvl === 2 ? 'Facile' : lvl === 3 ? 'Medio' : 'Difficile'}
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', overflowX: 'auto', maxWidth: '100%', paddingBottom: '10px' }}>
-        {PUZZLE_IMAGES.map((img) => (
-          <motion.img key={img.id} src={img.src} alt={img.title} onClick={() => setSelectedImage(img)} whileTap={{ scale: 0.9 }}
-            style={{ width: '60px', height: '60px', borderRadius: '10px', objectFit: 'cover', border: selectedImage.id === img.id ? '3px solid #1565C0' : '3px solid white', cursor: 'pointer' }}
+      {/* SELETTORE IMMAGINI */}
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '20px', justifyContent: 'center' }}>
+        {IMAGES.map((img) => (
+          <img 
+            key={img.id}
+            src={img.src}
+            alt={img.name}
+            onClick={() => setSelectedImage(img)}
+            style={{
+              width: '60px', height: '60px', objectFit: 'cover', borderRadius: '15px',
+              border: selectedImage.id === img.id ? '3px solid #1565C0' : '3px solid transparent',
+              cursor: 'pointer', transition: '0.3s'
+            }}
           />
         ))}
       </div>
 
-      <div style={{ position: 'relative' }}>
-        <div key={gameKey} className="clay-card" style={{ width: `${BOARD_SIZE + 20}px`, height: `${BOARD_SIZE + 20}px`, padding: '10px', background: '#fff', display: 'grid', gridTemplateColumns: `repeat(${level}, 1fr)`, gridTemplateRows: `repeat(${level}, 1fr)`, gap: '2px' }}>
-          {pieces.map((pieceId, index) => {
-            const originalRow = Math.floor(pieceId / level);
-            const originalCol = pieceId % level;
-            const backgroundX = -(originalCol * pieceSize);
-            const backgroundY = -(originalRow * pieceSize);
-            const isSelected = firstSelected === index;
-
-            return (
-              <motion.div key={pieceId} layout transition={{ type: "spring", stiffness: 300, damping: 30 }} onClick={() => handlePieceClick(index)}
-                style={{ width: '100%', height: '100%', backgroundImage: `url(${selectedImage.src})`, backgroundSize: `${BOARD_SIZE}px ${BOARD_SIZE}px`, backgroundPosition: `${backgroundX}px ${backgroundY}px`, backgroundRepeat: 'no-repeat', borderRadius: '5px', cursor: 'pointer', border: isSelected ? '3px solid #FFEB3B' : '1px solid rgba(0,0,0,0.1)', zIndex: isSelected ? 10 : 1, boxShadow: isSelected ? '0 0 15px #FFEB3B' : 'none', filter: isSolved ? 'brightness(1.1)' : 'none' }}
-              />
-            );
-          })}
-        </div>
-        <AnimatePresence>
-          {isSolved && (
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="clay-card" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(255,255,255,0.95)', border: '2px solid #4CAF50', textAlign: 'center', zIndex: 100, width: '280px', padding: '30px' }}>
-              <Trophy size={60} color="#FFD700" style={{ marginBottom: '10px' }} />
-              <h2 style={{ color: '#2E7D32' }}>Bravissimo!</h2>
-              <button onClick={startNewGame} className="clay-btn clay-btn-primary">Gioca ancora</button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* GRIGLIA GIOCO */}
+      <div 
+        className="clay-card"
+        style={{ 
+          maxWidth: '400px', 
+          margin: '0 auto', 
+          aspectRatio: '1/1', 
+          padding: '10px',
+          display: 'grid',
+          gridTemplateColumns: `repeat(${level}, 1fr)`,
+          gridTemplateRows: `repeat(${level}, 1fr)`,
+          gap: '2px',
+          background: '#fff',
+          position: 'relative' // Importante per contenere
+        }}
+      >
+        {tiles.map((tile, index) => (
+          <div
+            key={index}
+            onClick={() => handleTileClick(index)}
+            style={{
+              ...getBackgroundStyle(tile.correctPos),
+              borderRadius: '5px',
+              cursor: 'pointer',
+              border: firstTileIndex === index ? '3px solid #FFD700' : '1px solid #fff',
+              transform: firstTileIndex === index ? 'scale(0.95)' : 'scale(1)',
+              transition: 'transform 0.2s',
+              opacity: isSolved ? 1 : 0.9,
+              boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+            }}
+          />
+        ))}
       </div>
+
+      {/* 🛠️ FIX BANNER: ORA È UN OVERLAY FISSO E CENTRATO */}
+      {isSolved && (
+        <div style={{
+          position: 'fixed', // Copre tutto lo schermo
+          top: 0, 
+          left: 0,
+          right: 0, 
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)', // Sfondo scuro semi-trasparente
+          display: 'flex',
+          alignItems: 'center', // Centra verticalmente
+          justifyContent: 'center', // Centra orizzontalmente
+          zIndex: 1000,
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div className="clay-card" style={{ 
+            background: '#fff', 
+            padding: '30px', 
+            borderRadius: '25px', 
+            textAlign: 'center',
+            width: '80%',
+            maxWidth: '300px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+            animation: 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <Trophy size={60} color="#FFD700" style={{ marginBottom: '15px' }} />
+            <h2 style={{ color: '#2E7D32', margin: '0 0 10px 0' }}>Bravissimo!</h2>
+            <p style={{ color: '#666', marginBottom: '20px' }}>Hai completato il puzzle!</p>
+            
+            <button 
+              onClick={startNewGame}
+              className="clay-btn clay-btn-primary"
+              style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1rem' }}
+            >
+              <RefreshCw size={18} style={{ marginRight: 8 }} /> Gioca ancora
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stili animazione CSS inline per semplicità */}
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      `}</style>
     </div>
   );
 };
+
 export default PuzzleGame;
