@@ -1,86 +1,111 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
-import { BookOpen, Star, Sparkles } from 'lucide-react';
-import PremiumLock from '../components/PremiumLock'; // <--- Importiamo il lucchetto
-import { checkAccess } from '../config/subscription'; // <--- Importiamo le regole
+import { supabase } from '../supabaseClient';
+import { BookOpen, ArrowLeft, Star, PlayCircle } from 'lucide-react';
+import PremiumLock from '../components/PremiumLock'; // Assicurati di avere questo componente
 
 const Dashboard = () => {
   const [stories, setStories] = useState([]);
-  const [profile, setProfile] = useState(null); // Stato per il profilo utente
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStories();
-    fetchUserProfile();
   }, []);
 
   const fetchStories = async () => {
-    const { data, error } = await supabase.from('stories').select('*').order('id');
-    if (error) console.error(error);
-    else setStories(data);
-  };
-
-  const fetchUserProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      setProfile(data);
+    try {
+      // Scarica tutto (*) così prendiamo anche il campo 'pages' nascosto
+      const { data, error } = await supabase.from('stories').select('*');
+      if (error) throw error;
+      setStories(data || []);
+    } catch (error) {
+      console.error("Errore storie:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Funzione "Detective" per trovare l'immagine ovunque sia
+  const getCover = (story) => {
+    // 1. Cerca nella colonna principale
+    if (story.image_url) return story.image_url;
+    // 2. Cerca dentro la prima pagina (JSON) - FIX per le tue storie vecchie!
+    if (story.pages && Array.isArray(story.pages) && story.pages.length > 0) {
+      return story.pages[0].image_url || story.pages[0].image;
+    }
+    return null;
+  };
+
   return (
-    <div style={{ padding: '20px', minHeight: '100vh', paddingBottom: '80px' }}>
+    <div style={{ minHeight: '100vh', background: '#FFF3E0', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER DI BENVENUTO */}
-      <div style={{ textAlign: 'center', marginBottom: '40px', marginTop: '20px' }}>
-        <h1 style={{ fontSize: '2.5rem', color: '#333', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-          <Sparkles color="#FFC107" size={35} />
-          Le Tue Storie
+      {/* HEADER */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+        <Link to="/">
+           <div className="clay-btn" style={{ borderRadius: '50%', width: 45, height: 45, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+            <ArrowLeft size={24} color="#E65100" />
+          </div>
+        </Link>
+        <h1 style={{ margin: 0, color: '#E65100', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          Le Mie Storie <BookOpen size={32} />
         </h1>
-        <p style={{ color: '#666', fontSize: '1.1rem' }}>Scegli un'avventura e inizia a sognare!</p>
       </div>
 
-      {/* GRIGLIA STORIE */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {stories.map((story) => {
-          // CONTROLLO ACCESSO (Marketing Check)
-          const isUnlocked = checkAccess(profile, 'story', story.id);
+      {loading ? (
+        <div style={{textAlign: 'center', color: '#888'}}>Caricamento libreria...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px' }}>
+          {stories.map((story) => {
+            const imageSrc = getCover(story);
+            const isPremium = story.is_premium;
 
-          return (
-            <div key={story.id} style={{ position: 'relative' }}> 
-              {/* Il Link è attivo solo se sbloccato, altrimenti porta ai genitori */}
-              <Link to={isUnlocked ? `/story/${story.id}` : '/parents'} style={{ textDecoration: 'none' }}>
-                <div className="clay-card story-card" style={{ 
-                  height: '100%', 
-                  background: story.cover_color || '#fff',
-                  transition: 'transform 0.2s',
-                  position: 'relative', // Necessario per il lucchetto
-                  overflow: 'hidden'
-                }}>
-                  
-                  {/* LUCCHETTO PREMIUM (Se necessario) */}
-                  <PremiumLock isLocked={!isUnlocked} />
-
-                  <div style={{ fontSize: '4rem', marginBottom: '20px' }}>{story.image || '📖'}</div>
-                  <h2 style={{ color: '#fff', fontSize: '1.5rem', margin: '0 0 10px 0', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                    {story.title}
-                  </h2>
-                  <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', lineHeight: '1.4' }}>
-                    {story.description}
-                  </p>
-                  
-                  <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.2)', padding: '8px 15px', borderRadius: '20px', color: '#fff', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
-                    {isUnlocked ? <><BookOpen size={16} /> LEGGI ORA</> : <><Star size={16} /> SBLOCCA</>}
-                  </div>
-                </div>
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div key={story.id} style={{ height: '100%' }}>
+                {isPremium ? (
+                  <PremiumLock>
+                    <Link to={`/story/${story.id}`} style={{ textDecoration: 'none' }}>
+                      <StoryCard story={story} image={imageSrc} />
+                    </Link>
+                  </PremiumLock>
+                ) : (
+                  <Link to={`/story/${story.id}`} style={{ textDecoration: 'none' }}>
+                     <StoryCard story={story} image={imageSrc} />
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
+
+// Componente Grafico Card
+const StoryCard = ({ story, image }) => (
+  <div className="clay-card" style={{ background: '#fff', borderRadius: '20px', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '180px', background: '#ffe0b2', position: 'relative' }}>
+      {image ? (
+        <img src={image} alt={story.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <BookOpen size={50} color="#fff" />
+        </div>
+      )}
+      {story.is_premium && (
+        <div style={{ position: 'absolute', top: 10, right: 10, background: '#FFD700', padding: '5px 10px', borderRadius: '15px', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', gap: '5px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+          <Star size={12} fill="black" /> VIP
+        </div>
+      )}
+    </div>
+    <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>{story.title}</h3>
+      <p style={{ margin: 0, color: '#666', fontSize: '0.9rem', flex: 1 }}>{story.description}</p>
+      <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '5px', color: '#E65100', fontWeight: 'bold' }}>
+        <PlayCircle size={20} /> Leggi Ora
+      </div>
+    </div>
+  </div>
+);
 
 export default Dashboard;
