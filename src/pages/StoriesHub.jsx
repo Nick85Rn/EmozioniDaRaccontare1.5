@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { BookOpen, ArrowLeft, Star, Library } from 'lucide-react';
+import { BookOpen, ArrowLeft, Star, Library, ImageOff } from 'lucide-react';
 import PremiumLock from '../components/PremiumLock';
 
 const StoriesHub = () => {
@@ -11,23 +11,24 @@ const StoriesHub = () => {
 
   // Capisce se siamo nella sezione LIBRI o STORIE
   const isBooksSection = location.pathname.includes('books');
-  const tableName = isBooksSection ? 'books' : 'stories'; // Cambia tabella dinamicamente
+  const tableName = isBooksSection ? 'books' : 'stories'; 
   const pageTitle = isBooksSection ? 'I Miei Racconti' : 'Libreria Magica';
-  const detailRoute = isBooksSection ? '/book' : '/story'; // Dove porta il click?
+  const detailRoute = isBooksSection ? '/book' : '/story';
 
   useEffect(() => {
     fetchContent();
-  }, [location.pathname]); // Ricarica se cambi pagina
+  }, [location.pathname]); 
 
   const fetchContent = async () => {
     setLoading(true);
     try {
-      // 1. SELECT * (TUTTO): È più sicuro, non si rompe se manca una colonna
+      // Scarica TUTTO (*) per non perdere nessuna colonna
       const { data, error } = await supabase
         .from(tableName)
         .select('*'); 
 
       if (error) throw error;
+      console.log(`Dati caricati da ${tableName}:`, data); // Debug in console
       setItems(data || []);
     } catch (error) {
       console.error(`Errore caricamento ${tableName}:`, error);
@@ -60,8 +61,8 @@ const StoriesHub = () => {
           {items.map((item) => (
             <div key={item.id} style={{ position: 'relative' }}>
               
-              {/* Logica Premium: Funziona solo se la colonna 'is_premium' esiste ed è true */}
-              {item.is_premium ? (
+              {/* Controlla se è Premium (cerca diverse varianti del nome colonna) */}
+              {(item.is_premium || item.premium || item.vip) ? (
                 <PremiumLock>
                   <Link to={`${detailRoute}/${item.id}`} style={{ textDecoration: 'none' }}>
                     <Card item={item} isBook={isBooksSection} />
@@ -76,11 +77,10 @@ const StoriesHub = () => {
             </div>
           ))}
 
-          {/* MESSAGGIO SE VUOTO */}
           {items.length === 0 && (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', background: '#fff', borderRadius: '20px', color: '#888' }}>
               <h3>Nessun contenuto trovato. 📭</h3>
-              <p>Controlla di aver inserito dati nella tabella <strong>{tableName}</strong> su Supabase.</p>
+              <p>Controlla la tabella <strong>{tableName}</strong> su Supabase.</p>
             </div>
           )}
         </div>
@@ -89,47 +89,75 @@ const StoriesHub = () => {
   );
 };
 
-// CARD GRAFICA UNIFICATA
-const Card = ({ item, isBook }) => (
-  <div className="clay-card" style={{ 
-    background: '#fff', 
-    borderRadius: '20px', 
-    overflow: 'hidden', 
-    height: '100%',
-    display: 'flex', 
-    flexDirection: 'column',
-    cursor: 'pointer',
-    border: '1px solid rgba(0,0,0,0.05)',
-    transition: 'transform 0.2s'
-  }}>
-    {/* Immagine o Icona */}
-    <div style={{ height: '180px', background: isBook ? '#E1BEE7' : '#FFE0B2', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      {item.image_url ? (
-        <img src={item.image_url} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      ) : (
-        // Se manca l'immagine, mostra un'icona grande
-        isBook ? <Library size={60} color="#fff" /> : <BookOpen size={60} color="#fff" />
-      )}
-      
-      {/* Badge VIP (Se esiste la colonna) */}
-      {item.is_premium && (
-        <div style={{ position: 'absolute', top: 10, right: 10, background: '#FFD700', padding: '5px 10px', borderRadius: '15px', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', color: '#000' }}>
-          <Star size={12} fill="black" /> VIP
-        </div>
-      )}
-    </div>
+// --- COMPONENTE CARD CON "DETECTIVE IMMAGINI" ---
+const Card = ({ item, isBook }) => {
+  
+  // FUNZIONE DETECTIVE: Cerca l'immagine in qualsiasi colonna possibile
+  const getSmartImage = (obj) => {
+    if (!obj) return null;
+    return obj.image_url ||  // Standard
+           obj.cover_url ||  // Comune per i libri
+           obj.image ||      // Generico
+           obj.img ||        // Abbreviazione
+           obj.copertina ||  // Italiano
+           obj.cover ||      // Inglese
+           obj.src ||        // HTML style
+           null;
+  };
 
-    {/* Testo */}
-    <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <h3 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '1.2rem' }}>{item.title || "Senza Titolo"}</h3>
-      <p style={{ margin: 0, color: '#666', fontSize: '0.9rem', lineHeight: '1.4', flex: 1 }}>
-        {item.description || "Tocca per leggere..."}
-      </p>
-      <div style={{ marginTop: '15px', color: isBook ? '#7B1FA2' : '#E65100', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-        Leggi ora <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
+  const imageSrc = getSmartImage(item);
+  const isPremium = item.is_premium || item.premium || item.vip;
+
+  return (
+    <div className="clay-card" style={{ 
+      background: '#fff', 
+      borderRadius: '20px', 
+      overflow: 'hidden', 
+      height: '100%',
+      display: 'flex', 
+      flexDirection: 'column',
+      cursor: 'pointer',
+      border: '1px solid rgba(0,0,0,0.05)',
+      transition: 'transform 0.2s'
+    }}>
+      {/* Immagine o Icona Fallback */}
+      <div style={{ height: '180px', background: isBook ? '#E1BEE7' : '#FFE0B2', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        
+        {imageSrc ? (
+          <img 
+            src={imageSrc} 
+            alt={item.title} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+            onError={(e) => { e.target.style.display = 'none'; }} // Se l'URL è rotto, nascondi l'immagine
+          />
+        ) : (
+          // Fallback se non c'è proprio nessuna immagine
+          isBook ? <Library size={60} color="#fff" /> : <BookOpen size={60} color="#fff" />
+        )}
+
+        {/* Se l'immagine c'era ma si è rotta (gestito da onError sopra), mostra icona */}
+        {!imageSrc && <div style={{position:'absolute', opacity:0.3}}><ImageOff size={40}/></div>}
+        
+        {/* Badge VIP */}
+        {isPremium && (
+          <div style={{ position: 'absolute', top: 10, right: 10, background: '#FFD700', padding: '5px 10px', borderRadius: '15px', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', color: '#000', zIndex: 2 }}>
+            <Star size={12} fill="black" /> VIP
+          </div>
+        )}
+      </div>
+
+      {/* Testo */}
+      <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '1.2rem' }}>{item.title || "Senza Titolo"}</h3>
+        <p style={{ margin: 0, color: '#666', fontSize: '0.9rem', lineHeight: '1.4', flex: 1 }}>
+          {item.description || "Tocca per leggere..."}
+        </p>
+        <div style={{ marginTop: '15px', color: isBook ? '#7B1FA2' : '#E65100', fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          Leggi ora <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default StoriesHub;
