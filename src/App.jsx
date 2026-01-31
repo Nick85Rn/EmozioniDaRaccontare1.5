@@ -2,132 +2,90 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 
-// Pagine Principali
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';       
-import EbookLibrary from './pages/EbookLibrary'; 
-import GamesHub from './pages/GamesHub';         
-import ParentsArea from './pages/ParentsArea';   
-import StickerAlbum from './pages/StickerAlbum'; 
-
-// Auth & Legal
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import UpdatePassword from './pages/UpdatePassword';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-
-// Admin (Pagina Segreta & Strumenti)
-import AdminPanel from './pages/AdminPanel';
-import AudioGenerator from './pages/AudioGenerator';
-
-// Components
-import StoryPlayer from './components/StoryPlayer';
-import BookReader from './components/BookReader';
-import CalmCorner from './components/CalmCorner';
+// --- COMPONENTI STRUTTURALI ---
+import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
-// Giochi
-import FaceLab from './components/FaceLab';
-import MemoryGame from './components/MemoryGame';
-import BreathingGame from './components/BreathingGame';
-import BattleshipGame from './components/BattleshipGame';
-import Connect4Game from './components/Connect4Game';
-import EnglishGame from './components/EnglishGame';
-import PuzzleGame from './components/PuzzleGame'; 
+// --- PAGINE PRINCIPALI ---
+import Home from './pages/Home';
+import Login from './pages/Login';
+import ParentsArea from './pages/ParentsArea';
+import AdminPanel from './pages/AdminPanel'; // La pagina segreta
+
+// --- STORI E LIBRI ---
+import StoriesHub from './pages/StoriesHub'; // La libreria delle storie
+import StoryPlayer from './components/StoryPlayer'; // Il lettore con ElevenLabs
+import BookReader from './components/BookReader'; // Il lettore di libri semplici
+
+// --- GIOCHI ---
+import GamesHub from './pages/GamesHub'; // La sala giochi
+import PuzzleGame from './components/PuzzleGame'; // Il gioco del puzzle
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // --- GESTIONE SESSIONE E SICUREZZA ---
   useEffect(() => {
-    // 1. Controlla sessione all'avvio
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.warn("Sessione non valida, logout forzato.");
-        supabase.auth.signOut();
-      } else {
-        setSession(session);
-      }
+    // 1. Controlla la sessione attuale
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
       setLoading(false);
     });
 
-    // 2. Ascolta i cambiamenti (login, logout, token scaduto)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    // 2. Ascolta i cambiamenti (login/logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setLoading(false);
-
-      if (event === 'SIGNED_OUT') {
-        // Pulisce cache locale per evitare loop di redirect
-        localStorage.removeItem('sb-emozionidaraccontare-auth-token'); 
-      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- 👮‍♂️ IL GUARDIANO: CONTROLLO ADMIN ---
-  // Verifica se l'utente corrente è ESATTAMENTE tu
-  const isAdmin = session?.user?.email === 'cioni85@gmail.com';
-
-  if (loading) return null; // Evita sfarfallii mentre controlla l'utente
+  if (loading) {
+    return <div style={{ padding: 50, textAlign: 'center' }}>Caricamento Emozioni... 🚀</div>;
+  }
 
   return (
     <Router>
-      <div className="App" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: 'sans-serif' }}>
         
-        {/* Angolo della Calma (Sempre visibile per i bimbi) */}
-        <CalmCorner />
-        
+        {/* BARRA DI NAVIGAZIONE (Sempre visibile) */}
+        <Navbar session={session} />
+
+        {/* CONTENUTO CHE CAMBIA */}
         <div style={{ flex: 1 }}>
           <Routes>
-            {/* --- PAGINE PUBBLICHE --- */}
+            {/* 🏠 HOME & AUTH */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
 
-            {/* --- PAGINE UTENTE --- */}
-            <Route path="/stories" element={<Dashboard />} />
-            <Route path="/story/:id" element={<StoryPlayer />} />
-            <Route path="/ebooks" element={<EbookLibrary />} />
-            <Route path="/ebook/:id" element={<BookReader />} />
-            <Route path="/album" element={<StickerAlbum />} />
-            
-            {/* Area Genitori (Ha il suo Parental Gate interno) */}
+            {/* 👨‍👩‍👧‍👦 AREA GENITORI & ADMIN */}
             <Route path="/parents" element={<ParentsArea />} />
+            <Route path="/nicola-admin-secret" element={<AdminPanel />} />
 
-            {/* --- GIOCHI --- */}
+            {/* 📚 STORIE INTERATTIVE */}
+            <Route path="/stories" element={<StoriesHub />} />
+            <Route path="/story/:id" element={<StoryPlayer />} />
+
+            {/* 📖 LIBRI E RACCONTI */}
+            {/* Nota: Se non hai una pagina 'BooksHub', usiamo StoriesHub o Home come ripiego */}
+            <Route path="/books" element={<StoriesHub />} /> 
+            <Route path="/book/:id" element={<BookReader />} />
+
+            {/* 🎮 GIOCHI */}
             <Route path="/games" element={<GamesHub />} />
-            <Route path="/facelab" element={<FaceLab />} />
-            <Route path="/memory" element={<MemoryGame />} />
-            <Route path="/breathing" element={<BreathingGame />} />
-            <Route path="/battleship" element={<BattleshipGame />} />
-            <Route path="/connect4" element={<Connect4Game />} />
-            <Route path="/english" element={<EnglishGame />} />
             <Route path="/puzzle" element={<PuzzleGame />} />
-
-            {/* --- AREA AMMINISTRATORE (SUPER PROTETTA) --- */}
-            {/* Se è Admin -> Mostra il pannello. Se no -> Calcia alla Home */}
-            <Route 
-              path="/nicola-admin-secret" 
-              element={
-                isAdmin ? <AdminPanel /> : <Navigate to="/" replace />
-              } 
-            />
             
-            <Route 
-              path="/audio-studio" 
-              element={
-                isAdmin ? <AudioGenerator /> : <Navigate to="/" replace />
-              } 
-            />
+            {/* Placeholder per giochi futuri (per evitare crash se clicchi i link in GamesHub) */}
+            <Route path="/battleship" element={<GamesHub />} />
+            <Route path="/memory" element={<GamesHub />} />
+            <Route path="/target" element={<GamesHub />} />
 
+            {/* ⚠️ CATCH-ALL (Se la pagina non esiste, torna alla Home) */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
 
-        {/* Footer in basso */}
+        {/* PIÈ DI PAGINA (Sempre visibile) */}
         <Footer />
         
       </div>
