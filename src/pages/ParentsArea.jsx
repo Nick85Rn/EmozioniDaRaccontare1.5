@@ -8,14 +8,14 @@ import {
   ExternalLink, Sun, Clock, Database 
 } from 'lucide-react';
 
-// 👇 CONFIGURAZIONE COSTI E LINK 👇
+// 👇 CONFIGURAZIONE COSTI E LINK
 const PREMIUM_COST = "9,90€"; 
 const PAYPAL_LINK = "https://paypal.me/NPellicioni/9.90"; 
 
-// 👇 CONFIGURAZIONE EMAILJS (Inserisci qui le tue chiavi prese dal sito) 👇
+// 👇 CONFIGURAZIONE EMAILJS (Per notificare TE del pagamento)
 const EMAILJS_SERVICE_ID = "service_82046y2"; 
-const EMAILJS_TEMPLATE_ID = "template_rrgy54o";
-const EMAILJS_PUBLIC_KEY = "PuKbUKoAwK7OcpNf_";
+const EMAILJS_TEMPLATE_ID = "template_rrgy54o"; 
+const EMAILJS_PUBLIC_KEY = "PuKbUKoAwK7OcpNf_"; 
 
 const ParentsArea = () => {
   // --- STATI SICUREZZA ---
@@ -44,9 +44,8 @@ const ParentsArea = () => {
     shadow: isNight ? '0 4px 6px rgba(0,0,0,0.3)' : '0 10px 25px rgba(0,0,0,0.05)'
   };
 
-  // Verifica se l'utente è in attesa (letto dal DB)
   const isPendingVerification = profile?.payment_status === 'pending';
-  // Verifica se l'utente è l'ADMIN
+  // Verifica Admin (Tu)
   const isAdmin = session?.user?.email === 'cioni85@gmail.com';
 
   useEffect(() => {
@@ -85,27 +84,23 @@ const ParentsArea = () => {
     setShowConfirmPay(true);
   };
 
-  // --- LOGICA CHIAVE: SALVA SU DB E INVIA MAIL ---
   const handleConfirmPayment = async () => {
     setUpgrading(true);
-
     try {
-      // 1. AGGIORNA IL DATABASE (Stato Pending + Data)
+      // 1. Aggiorna DB
       const { error } = await supabase
         .from('profiles')
-        .update({ 
-          payment_status: 'pending', 
-          payment_date: new Date().toISOString() 
-        })
+        .update({ payment_status: 'pending', payment_date: new Date().toISOString() })
         .eq('id', session.user.id);
 
       if (error) throw error;
 
-      // 2. INVIA LA MAIL A TE (Nicola)
+      // 2. Invia Mail a TE
       await emailjs.send(
         EMAILJS_SERVICE_ID,
         EMAILJS_TEMPLATE_ID,
         {
+          to_email: "cioni85@gmail.com", 
           user_email: session.user.email,
           payment_date: new Date().toLocaleString('it-IT'),
           message: "L'utente ha confermato il pagamento. Verifica su PayPal."
@@ -113,11 +108,9 @@ const ParentsArea = () => {
         EMAILJS_PUBLIC_KEY
       );
 
-      // 3. AGGIORNA LA SCHERMATA
       await fetchProfile(session.user.id); 
       setShowConfirmPay(false);
       alert("✅ Richiesta inviata! Riceverai il Premium entro 4 ore.");
-
     } catch (error) {
       console.error("Errore:", error);
       alert("Errore di connessione. Riprova tra poco.");
@@ -126,7 +119,6 @@ const ParentsArea = () => {
     }
   };
 
-  // --- PARENTAL GATE ---
   const generateMathProblem = () => {
     setMathProblem({ n1: Math.floor(Math.random() * 8) + 2, n2: Math.floor(Math.random() * 5) + 2 });
     setUserAnswer('');
@@ -143,7 +135,7 @@ const ParentsArea = () => {
     navigate('/');
   };
 
-  // SCHERMATA BLOCCO (Se non verificato)
+  // --- BLOCCO PARENTAL GATE ---
   if (!isVerified) {
     return (
       <div style={{ minHeight: '100vh', background: '#263238', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -166,10 +158,11 @@ const ParentsArea = () => {
     );
   }
 
-  // SCHERMATA DASHBOARD (Se verificato)
+  // --- INTERFACCIA DASHBOARD ---
   return (
     <div style={{ minHeight: '100vh', background: theme.bg, padding: '20px', transition: 'background 0.3s ease' }}>
       
+      {/* HEADER */}
       <div style={{ maxWidth: '800px', margin: '0 auto 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
         <h1 style={{ margin: 0, color: theme.textMain, display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.8rem' }}>
           <ShieldCheck color="#4CAF50" size={32} /> Area Genitori
@@ -181,6 +174,7 @@ const ParentsArea = () => {
         
         {session ? (
           <>
+            {/* CARD UTENTE */}
             <div className="clay-card" style={{ background: theme.cardBg, padding: '25px', marginBottom: '25px', flexDirection: 'row', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: theme.border, boxShadow: theme.shadow }}>
               <div style={{ background: isNight ? '#333' : '#E3F2FD', padding: '15px', borderRadius: '50%', border: isNight ? 'none' : '2px solid #BBDEFB' }}>
                 <User size={35} color={theme.highlight} />
@@ -188,7 +182,6 @@ const ParentsArea = () => {
               <div style={{ flex: 1, minWidth: '200px' }}>
                 <h3 style={{ margin: '0 0 5px 0', color: theme.textMain }}>Ciao Genitore! 👋</h3>
                 <p style={{ margin: 0, color: theme.textSub, fontSize: '0.95rem', wordBreak: 'break-all' }}>{session.user.email}</p>
-                {/* ETICHETTA STATO VERIFICA */}
                 {isPendingVerification && (
                   <span style={{ fontSize: '0.8rem', color: '#F57C00', fontWeight: 'bold', background: '#FFF3E0', padding: '2px 8px', borderRadius: '10px', marginTop: '5px', display: 'inline-block' }}>
                     Verifica Pagamento in Corso ⏳
@@ -200,14 +193,16 @@ const ParentsArea = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
               
-              {/* CARD PREFERENZE */}
+              {/* CARD PREFERENZE (Senza Selettore Voce perché ora usi ElevenLabs) */}
               <div className="clay-card" style={{ padding: '25px', background: theme.cardBg, alignItems: 'flex-start', border: theme.border, boxShadow: theme.shadow }}>
                 <div style={{ background: isNight ? '#333' : '#ECEFF1', padding: '10px', borderRadius: '10px', marginBottom: '15px' }}><Settings size={24} color="#607D8B" /></div>
                 <h3 style={{ margin: '0 0 15px 0', color: theme.textMain }}>Preferenze App</h3>
+                
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: `1px solid ${isNight ? '#333' : '#eee'}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: theme.textSub }}>{isNight ? <Moon size={20} /> : <Sun size={20} />} Modalità {isNight ? 'Scura' : 'Chiara'}</div>
                   <label className="switch"><input type="checkbox" checked={isNight} onChange={(e) => updatePreference('night_mode', e.target.checked)} /><span className="slider round"></span></label>
                 </div>
+                
                 <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: theme.textSub }}><Volume2 size={20} /> Effetti Sonori</div>
                   <label className="switch"><input type="checkbox" checked={profile?.sound_enabled !== false} onChange={(e) => updatePreference('sound_enabled', e.target.checked)} /><span className="slider round"></span></label>
@@ -237,24 +232,20 @@ const ParentsArea = () => {
                     </div>
 
                     {isPendingVerification ? (
-                      // STATO: IN ATTESA DI VERIFICA
                       <div style={{ background: isNight ? '#3E2723' : '#FFF8E1', padding: '15px', borderRadius: '10px', border: '1px solid #FFE0B2', width: '100%', boxSizing: 'border-box' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', color: '#F57C00', fontWeight: 'bold' }}>
                           <Clock size={20} /> Verifica in corso
                         </div>
                         <p style={{ margin: 0, fontSize: '0.9rem', color: isNight ? '#FFCC80' : '#5D4037', lineHeight: '1.4' }}>
-                          Abbiamo salvato la richiesta! Stiamo verificando il pagamento. 
-                          <br/><br/>
+                          Abbiamo salvato la richiesta! Stiamo verificando il pagamento. <br/><br/>
                           <strong>Entro 4 ore</strong> l'account sarà sbloccato.
                         </p>
                       </div>
                     ) : (
-                      // STATO: GRATUITO STANDARD
                       <>
                         <p style={{ color: theme.textSub, fontSize: '0.9rem', marginBottom: '20px' }}>
                           Sblocca tutte le storie e i giochi educativi per sempre. Un solo pagamento.
                         </p>
-                        
                         {!showConfirmPay ? (
                           <button onClick={handleStartPayment} className="clay-btn clay-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
                             Acquista Premium <ExternalLink size={16} style={{ marginLeft: 8 }} />
@@ -279,25 +270,16 @@ const ParentsArea = () => {
               </div>
             </div>
 
-            {/* 🔥 PULSANTE SEGRETO PER L'ADMIN (Visibile solo a Nicola) */}
+            {/* BOTTONE SEGRETO PER NICOLA (Admin) */}
             {isAdmin && (
               <div style={{ marginTop: '40px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
                 <Link to="/nicola-admin-secret" style={{ textDecoration: 'none' }}>
                   <div className="clay-card" style={{ 
-                    background: '#263238', 
-                    color: '#fff', 
-                    padding: '15px', 
-                    borderRadius: '15px', 
-                    textAlign: 'center', 
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
+                    background: '#263238', color: '#fff', padding: '15px', borderRadius: '15px', 
+                    textAlign: 'center', fontWeight: 'bold', display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', gap: '10px', boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
                   }}>
-                    <Database size={20} color="#FF5722" /> 
-                    ACCEDI ALLA ADMIN CONSOLE
+                    <Database size={20} color="#FF5722" /> ACCEDI ALLA ADMIN CONSOLE
                   </div>
                 </Link>
               </div>
